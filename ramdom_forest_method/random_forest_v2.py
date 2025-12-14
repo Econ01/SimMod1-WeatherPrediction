@@ -93,7 +93,7 @@ mae = mean_absolute_error(y_test_celsius, predictions_celsius)
 rmse = np.sqrt(mean_squared_error(y_test_celsius, predictions_celsius))
 r2 = r2_score(y_test_celsius, predictions_celsius)
 
-print(f"\n✅ Results on Test Set:")
+print(f"\nResults on Test Set:")
 print(f"MAE:  {mae:.2f} °C")
 print(f"RMSE: {rmse:.2f} °C")
 print(f"R²:   {r2:.4f}")
