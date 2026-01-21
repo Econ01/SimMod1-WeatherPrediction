@@ -63,7 +63,7 @@ def create_lagged_features(df, variables, lag_days=15):
 print("Generating lagged features (Optimized)...")
 
 train_processed, FEATURE_COLS = create_lagged_features(train_df, ALL_VARS, lag_days=15)
-val_processed, _              = create_lagged_features(val_df,   ALL_VARS, lag_days=15) # ✅ [新增] 处理验证集特征
+val_processed, _              = create_lagged_features(val_df,   ALL_VARS, lag_days=15)
 test_processed, _ = create_lagged_features(test_df, ALL_VARS, lag_days=15)
 
 print(f"Total features created: {len(FEATURE_COLS)}") 
@@ -83,6 +83,54 @@ X_test = test_processed[FEATURE_COLS]
 y_test = test_processed['Target_TG']
 
 
+
+from sklearn.feature_selection import SelectFromModel
+
+# --- 6.5 Feature Selection (Model-Based) ---
+print("Starting Feature Selection...")
+
+# Initialize a temporary Random Forest to evaluate feature importance
+# We use standard parameters here; this model is just for screening, not prediction.
+selector_model = RandomForestRegressor(
+    n_estimators=100,
+    random_state=SEED,
+    n_jobs=-1
+)
+
+# Fit the selector on the Training set
+print(f"   Fitting selector model on {X_train.shape[1]} features...")
+selector_model.fit(X_train, y_train)
+
+# Configure the Selector
+# Strategy: Force the model to keep only the Top 30 most important features.
+# This reduces dimensionality (150 -> 30) and removes noise/redundancy.
+selector = SelectFromModel(
+    selector_model,
+    max_features=30,  # Strict limit: keep top 30
+    threshold=-np.inf, # Required when using max_features
+    prefit=True        # We already fitted the model above
+)
+
+# Transform (Filter) the datasets
+# IMPORTANT: We must apply the same filter to Train, Validation, and Test sets.
+X_train_selected = selector.transform(X_train)
+X_val_selected   = selector.transform(X_val)
+X_test_selected  = selector.transform(X_test)
+
+# Update the list of Feature Names (for plotting later)
+selected_indices = selector.get_support(indices=True)
+SELECTED_COLS = [FEATURE_COLS[i] for i in selected_indices]
+
+# --- Sanity Check / Report ---
+print(f"\n✅ Feature Selection Complete.")
+print(f"   Original Feature Count: {X_train.shape[1]}")
+print(f"   Selected Feature Count: {X_train_selected.shape[1]}")
+print(f"   Top 5 Retained Features: {SELECTED_COLS[:5]}")
+
+# ⚠️ 
+# must now use:
+# X_train_selected, X_val_selected, and X_test_selected
+# instead of the original X_train, X_val, X_test.
 
 
 
@@ -116,10 +164,10 @@ for params in param_grid:
     )
 
     # Train on training set
-    model.fit(X_train, y_train)
+    model.fit(X_train_selected, y_train)
 
     # Critical: evaluate on validation set
-    val_preds = model.predict(X_val)
+    val_preds = model.predict(X_val_selected)
     val_rmse = np.sqrt(mean_squared_error(y_val/10.0, val_preds/10.0)) # to celsius
 
     print(f"Val RMSE: {val_rmse:.4f}")
@@ -143,7 +191,7 @@ print(f" Model used for Final Test: {best_model.get_params()['n_estimators']} tr
 
 print("\nMaking predictions using the BEST model...")
 
-predictions = best_model.predict(X_test)
+predictions = best_model.predict(X_test_selected)
 
 
 
@@ -166,7 +214,7 @@ print(f"R²:   {r2:.4f}")
 
 # Feature Importance
 print("\nTop 5 Most Important Features:")
-feature_importances = pd.Series(best_model.feature_importances_, index=FEATURE_COLS)
+feature_importances = pd.Series(best_model.feature_importances_, index=SELECTED_COLS)
 print(feature_importances.sort_values(ascending=False).head(5))
 
 
