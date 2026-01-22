@@ -114,3 +114,4 @@ print("Predictions saved to 'random_forest_predictions.csv'")
 print("\nTop 5 Most Important Features:")
 feature_importances = pd.Series(rf_model.feature_importances_, index=FEATURE_COLS)
 print(feature_importances.sort_values(ascending=False).head(5))
+
