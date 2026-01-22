@@ -51,6 +51,8 @@ def compute_benchmarks(actuals, x_test, train_df, val_df, test_df, forecast_days
     # Check and warn about cache compatibility
     persistent_cache_path = './modifiedData/persistent_predictions.npy'
     sarima_cache_path = './modifiedData/sarima_predictions.npy'
+    persistent_time_path = './modifiedData/persistent_time.npy'
+    sarima_time_path = './modifiedData/sarima_time.npy'
 
     cache_needs_refresh = False
     if os.path.exists(persistent_cache_path):
@@ -61,6 +63,10 @@ def compute_benchmarks(actuals, x_test, train_df, val_df, test_df, forecast_days
             os.remove(persistent_cache_path)
             if os.path.exists(sarima_cache_path):
                 os.remove(sarima_cache_path)
+            if os.path.exists(persistent_time_path):
+                os.remove(persistent_time_path)
+            if os.path.exists(sarima_time_path):
+                os.remove(sarima_time_path)
             cache_needs_refresh = True
 
     # ----------------------------------------------------------------------------
@@ -74,6 +80,15 @@ def compute_benchmarks(actuals, x_test, train_df, val_df, test_df, forecast_days
         print(f"  {Colors.GREEN}Found cached predictions. Loading from disk...{Colors.ENDC}")
         persistent_predictions = np.load(persistent_cache_path)
         print(f"  {Colors.CYAN}Loaded persistent predictions for {len(persistent_predictions)} samples{Colors.ENDC}")
+
+        # Try to load cached execution time
+        if os.path.exists(persistent_time_path):
+            persistent_computation_time = np.load(persistent_time_path).item()
+            print(f"  {Colors.CYAN}Loaded cached computation time: {persistent_computation_time*1000:.2f}ms{Colors.ENDC}")
+        else:
+            # Fallback: use current loading time (will be very small)
+            persistent_computation_time = time.time() - persistent_start_time
+            print(f"  {Colors.YELLOW}No cached time found. Using loading time: {persistent_computation_time*1000:.2f}ms{Colors.ENDC}")
     else:
         print(f"  {Colors.YELLOW}Cache not found. Computing Persistent Model predictions...{Colors.ENDC}")
 
@@ -118,12 +133,17 @@ def compute_benchmarks(actuals, x_test, train_df, val_df, test_df, forecast_days
                 for day in range(forecast_days):
                     persistent_predictions[i, day, 0] = last_observed_tg
 
-        # Save to cache
-        np.save(persistent_cache_path, persistent_predictions)
-        print(f"  {Colors.GREEN}Computed and saved persistent predictions for {len(persistent_predictions)} samples{Colors.ENDC}")
+        # Compute the execution time for this computation
+        persistent_computation_time = time.time() - persistent_start_time
 
-    persistent_end_time = time.time()
-    persistent_time = persistent_end_time - persistent_start_time
+        # Save predictions and execution time to cache
+        np.save(persistent_cache_path, persistent_predictions)
+        np.save(persistent_time_path, persistent_computation_time)
+        print(f"  {Colors.GREEN}Computed and saved persistent predictions for {len(persistent_predictions)} samples{Colors.ENDC}")
+        print(f"  {Colors.GREEN}Saved computation time: {persistent_computation_time*1000:.2f}ms{Colors.ENDC}")
+
+    # Use the computation time (either loaded or just computed)
+    persistent_time = persistent_computation_time
 
     # ----------------------------------------------------------------------------
     # 2. SARIMA MODEL
@@ -136,6 +156,15 @@ def compute_benchmarks(actuals, x_test, train_df, val_df, test_df, forecast_days
         print(f"  {Colors.GREEN}Found cached predictions. Loading from disk...{Colors.ENDC}")
         sarima_predictions = np.load(sarima_cache_path)
         print(f"  {Colors.CYAN}Loaded SARIMA predictions for {len(sarima_predictions)} samples{Colors.ENDC}")
+
+        # Try to load cached execution time
+        if os.path.exists(sarima_time_path):
+            sarima_computation_time = np.load(sarima_time_path).item()
+            print(f"  {Colors.CYAN}Loaded cached computation time: {sarima_computation_time:.2f}s{Colors.ENDC}")
+        else:
+            # Fallback: use current loading time (will be very small)
+            sarima_computation_time = time.time() - sarima_start_time
+            print(f"  {Colors.YELLOW}No cached time found. Using loading time: {sarima_computation_time:.4f}s{Colors.ENDC}")
     else:
         print(f"  {Colors.YELLOW}Cache not found. Training SARIMA model (fair approach: train once, no refitting)...{Colors.ENDC}")
 
@@ -193,11 +222,16 @@ def compute_benchmarks(actuals, x_test, train_df, val_df, test_df, forecast_days
             if (i + 1) % 50 == 0:
                 print(f"    {Colors.CYAN}Processed {i + 1}/{len(x_test)} samples...{Colors.ENDC}")
 
-        # Save to cache
-        np.save(sarima_cache_path, sarima_predictions)
-        print(f"  {Colors.GREEN}Computed and saved SARIMA predictions for {len(sarima_predictions)} samples{Colors.ENDC}")
+        # Compute the execution time for this computation
+        sarima_computation_time = time.time() - sarima_start_time
 
-    sarima_end_time = time.time()
-    sarima_time = sarima_end_time - sarima_start_time
+        # Save predictions and execution time to cache
+        np.save(sarima_cache_path, sarima_predictions)
+        np.save(sarima_time_path, sarima_computation_time)
+        print(f"  {Colors.GREEN}Computed and saved SARIMA predictions for {len(sarima_predictions)} samples{Colors.ENDC}")
+        print(f"  {Colors.GREEN}Saved computation time: {sarima_computation_time:.2f}s{Colors.ENDC}")
+
+    # Use the computation time (either loaded or just computed)
+    sarima_time = sarima_computation_time
 
     return persistent_predictions, sarima_predictions, persistent_time, sarima_time
