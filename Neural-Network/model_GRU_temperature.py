@@ -836,3 +836,24 @@ plt.savefig('./figures/temperature_forecast_evaluation.png', dpi=800, bbox_inche
 print(f"  {Colors.GREEN}Saved: ./figures/temperature_forecast_evaluation.png{Colors.ENDC}")
 
 plt.show()
+
+# Export Day 1 predictions to CSV (for comparison with other models)
+print(f"\n{Colors.CYAN}Exporting Day 1 predictions to CSV...{Colors.ENDC}")
+
+# Extract Day 1 predictions (index 0)
+day1_predictions = predictions[:, 0, 0]
+day1_actuals = actuals[:, 0, 0]
+
+# Create DataFrame with same format as Linear Regression and Random Forest
+gru_export_df = pd.DataFrame({
+    'date': [d.strftime('%Y-%m-%d') for d in test_dates],
+    'actual_TG': day1_actuals,
+    'predicted_TG': day1_predictions
+})
+
+# Save to CSV
+gru_csv_path = './gru_predictions.csv'
+gru_export_df.to_csv(gru_csv_path, index=False)
+print(f"  {Colors.GREEN}Saved: {gru_csv_path}{Colors.ENDC}")
+print(f"  Date range: {test_dates[0].strftime('%Y-%m-%d')} to {test_dates[-1].strftime('%Y-%m-%d')}")
+print(f"  Total samples: {len(gru_export_df)}")
