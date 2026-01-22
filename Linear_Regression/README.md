@@ -43,6 +43,11 @@ The project implements two experimental approaches to linear regression to demon
 *   **Type**: Time series forecasting with multiple predictors.
 *   **Validity**: This is a valid predictive approach as it uses historical data from the previous day to predict today's temperature, avoiding data leakage.
 
+### 3. Rolling Window Linear Regression (Feature Engineering)
+*   **Goal**: Predict today's mean temperature (`TG`) using yesterday's data (`TN_lag1`, `TX_lag1`, `TG_lag1`) plus the **average mean temperature of the last 3 days** (`TG_mean_3d`).
+*   **Type**: Time series forecasting with rolling statistics.
+*   **Validity**: Uses a shifted window to ensure only past data (from t-1, t-2, and t-3) is used for the current prediction.
+
 ## Results
 
 The following table summarizes the performance of the models on the test set (2023-2025):
@@ -51,6 +56,7 @@ The following table summarizes the performance of the models on the test set (20
 | :--- | :--- | :--- | :--- |
 | **Simple Regression** (TG_lag1 → TG) | 17.606 | 22.607 | 0.880 |
 | **Multiple Regression** (TN_lag1, TX_lag1, TG_lag1 → TG) | 17.205 | 22.204 | 0.885 |
+| **Rolling Window Regression** (Multi + TG_mean_3d) | 17.181 | 22.235 | 0.884 |
 
 > **Note**: Both models now use valid forecasting approaches with lagged features, avoiding data leakage.
 
@@ -61,6 +67,9 @@ The following table summarizes the performance of the models on the test set (20
 
 #### Multiple Linear Regression: Real vs Predicted
 ![Multiple Regression Results](https://raw.githubusercontent.com/DiegoGarces95/Linear_Regression_SimMod1-WeatherPrediction/main/figures/tg_multi_real_vs_predicho.png)
+
+#### Rolling Window Regression: Real vs Predicted
+![Rolling Window Results](https://raw.githubusercontent.com/DiegoGarces95/Linear_Regression_SimMod1-WeatherPrediction/main/figures/tg_rolling_real_vs_predicho.png)
 
 ## Execution
 

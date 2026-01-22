@@ -174,3 +174,76 @@ def linear_regression_experiments(train_df, test_df, figures_dir="figures"):
     print(f"RMSE: {rmse_multi:.3f}")
     print(f"R²: {r2_multi:.3f}")
     print("Results saved in linear_regression_predictions_multi.csv and figures/tg_multi_real_vs_predicho.png\n")
+
+def linear_regression_rolling_window_experiment(train_df, test_df, figures_dir="figures"):
+    """
+    Performs an experiment using a rolling window mean of TG as a feature.
+    Calculates the mean of TG over the last 3 days (t-1, t-2, t-3).
+    Features: TN_lag1, TX_lag1, TG_lag1, TG_mean_3d
+    """
+    os.makedirs(figures_dir, exist_ok=True)
+    
+    # Combined df for lag/rolling calculation
+    combined_df = pd.concat([train_df, test_df], ignore_index=True)
+    
+    # Standard lags
+    combined_df["TN_lag1"] = combined_df["TN"].shift(1)
+    combined_df["TX_lag1"] = combined_df["TX"].shift(1)
+    combined_df["TG_lag1"] = combined_df["TG"].shift(1)
+    
+    # Rolling mean of TG (window=3, shifted by 1 to use past data only)
+    # .shift(1) makes the window [t-1, t-2, t-3] relative to current t
+    combined_df["TG_mean_3d"] = combined_df["TG"].shift(1).rolling(window=3).mean()
+    
+    # Split back
+    n_train = len(train_df)
+    # We need to drop more rows now because of the 3-day window
+    # First 3 rows will have NaN for TG_mean_3d
+    train_rolling = combined_df[:n_train].dropna()
+    test_rolling = combined_df[n_train:].copy()
+    
+    # Prepare features
+    feature_cols = ["TN_lag1", "TX_lag1", "TG_lag1", "TG_mean_3d"]
+    X_train = train_rolling[feature_cols]
+    y_train = train_rolling["TG"]
+    X_test = test_rolling[feature_cols]
+    y_test = test_rolling["TG"]
+    
+    # Train
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+    
+    # Predict
+    pred = model.predict(X_test)
+    
+    # Evaluate
+    mae = mean_absolute_error(y_test, pred)
+    rmse = mean_squared_error(y_test, pred) ** 0.5
+    r2 = r2_score(y_test, pred)
+    
+    # Save results
+    results = pd.DataFrame({
+        "date": test_rolling["DATE"],
+        "actual_TG": y_test,
+        "predicted_TG": pred
+    })
+    results.to_csv("linear_regression_predictions_rolling.csv", index=False)
+    
+    # Visualization
+    plt.figure(figsize=(10,4))
+    plt.plot(y_test.values, label='Actual', marker='o', linestyle='-', alpha=0.7)
+    plt.plot(pred, label='Predicted', marker='x', linestyle='--', alpha=0.7)
+    plt.legend()
+    plt.title('Rolling Window Regression: Actual vs Predicted TG')
+    plt.xlabel('Sample Index')
+    plt.ylabel('Mean Temperature (°C)')
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, 'tg_rolling_real_vs_predicho.png'))
+    plt.close()
+    
+    print("--- Rolling Window Regression ---")
+    print(f"MAE: {mae:.3f}")
+    print(f"RMSE: {rmse:.3f}")
+    print(f"R²: {r2:.3f}")
+    print("Results saved in linear_regression_predictions_rolling.csv and figures/tg_rolling_real_vs_predicho.png\n")
+    return model

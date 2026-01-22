@@ -6,7 +6,7 @@ Each step is documented for learning purposes.
 """
 import os
 from src.data_loader import load_datasets
-from src.linear_regression_model import linear_regression_experiments
+from src.linear_regression_model import linear_regression_experiments, linear_regression_rolling_window_experiment
 
 if __name__ == "__main__":
     # Create directory for figures if it doesn't exist
@@ -18,3 +18,6 @@ if __name__ == "__main__":
 
     # Run linear regression experiments
     linear_regression_experiments(train_df, test_df, figures_dir=figures_dir)
+    
+    # Run rolling window experiment
+    linear_regression_rolling_window_experiment(train_df, test_df, figures_dir=figures_dir)
