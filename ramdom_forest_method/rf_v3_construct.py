@@ -218,6 +218,19 @@ feature_importances = pd.Series(best_model.feature_importances_, index=SELECTED_
 print(feature_importances.sort_values(ascending=False).head(5))
 
 
+# --- 10. Save Predictions to CSV ---
+print("\nSaving results...")
+
+results_df = pd.DataFrame({
+    'date': y_test.index,       
+    'actual_TG': y_test.values, # Keep in original units (0.1°C)
+    'predicted_TG': predictions # Keep in original units (0.1°C)
+})
+
+# Save to CSV
+results_df.to_csv('random_forest_predictions.csv', index=False)
+
+print("'Predictions successfully saved to 'random_forest_predictions.csv'")
 
 
 
