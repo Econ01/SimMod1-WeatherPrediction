@@ -20,6 +20,9 @@ import os
 GRU_CSV = 'Neural-Network/gru_predictions.csv'
 LR_CSV = 'Linear_Regression/linear_regression_predictions_multi.csv'
 RF_CSV = 'ramdom_forest_method/random_forest_predictions.csv'
+PERSISTENT_NPY = 'Neural-Network/modifiedData/persistent_predictions.npy'
+SARIMA_NPY = 'Neural-Network/modifiedData/sarima_predictions.npy'
+TEST_DATA_CSV = 'Neural-Network/modifiedData/test_data.csv'
 
 # Common start date (where all models have predictions)
 COMMON_START_DATE = '2023-01-16'
@@ -33,7 +36,9 @@ COLORS = {
     'actual': 'black',
     'gru': 'blue',
     'lr': 'green',
-    'rf': 'orange'
+    'rf': 'orange',
+    'persistent': 'red',
+    'sarima': 'purple'
 }
 
 print("Loading predictions from all models...")
@@ -49,14 +54,42 @@ gru_df = pd.read_csv(GRU_CSV)
 lr_df = pd.read_csv(LR_CSV)
 rf_df = pd.read_csv(RF_CSV)
 
+# Load benchmark predictions
+print("Loading benchmark predictions...")
+persistent_preds = np.load(PERSISTENT_NPY)  # Shape: (n_samples, 3, 1)
+sarima_preds = np.load(SARIMA_NPY)          # Shape: (n_samples, 3, 1)
+
+# Extract Day 1 predictions (index 0 of 3-day forecast)
+persistent_day1 = persistent_preds[:, 0, 0]  # Shape: (n_samples,)
+sarima_day1 = sarima_preds[:, 0, 0]          # Shape: (n_samples,)
+
+# Use GRU dates as reference (benchmark predictions align with GRU predictions)
+# Create benchmark dataframes aligned with GRU dates
+persistent_df = pd.DataFrame({
+    'date': gru_df['date'].values,
+    'predicted_TG': persistent_day1
+})
+
+sarima_df = pd.DataFrame({
+    'date': gru_df['date'].values,
+    'predicted_TG': sarima_day1
+})
+
+print(f"  Persistent:        {len(persistent_df)} samples")
+print(f"  SARIMA:            {len(sarima_df)} samples")
+
 # Convert date columns to datetime
 gru_df['date'] = pd.to_datetime(gru_df['date'])
 lr_df['date'] = pd.to_datetime(lr_df['date'])
 rf_df['date'] = pd.to_datetime(rf_df['date'])
+persistent_df['date'] = pd.to_datetime(persistent_df['date'])
+sarima_df['date'] = pd.to_datetime(sarima_df['date'])
 
 print(f"  GRU:               {len(gru_df)} samples ({gru_df['date'].min().date()} to {gru_df['date'].max().date()})")
 print(f"  Linear Regression: {len(lr_df)} samples ({lr_df['date'].min().date()} to {lr_df['date'].max().date()})")
 print(f"  Random Forest:     {len(rf_df)} samples ({rf_df['date'].min().date()} to {rf_df['date'].max().date()})")
+print(f"  Persistent:        {len(persistent_df)} samples ({persistent_df['date'].min().date()} to {persistent_df['date'].max().date()})")
+print(f"  SARIMA:            {len(sarima_df)} samples ({sarima_df['date'].min().date()} to {sarima_df['date'].max().date()})")
 
 print(f"\nAligning data to common date range (from {COMMON_START_DATE})...")
 
@@ -66,19 +99,26 @@ common_start = pd.to_datetime(COMMON_START_DATE)
 gru_df = gru_df[gru_df['date'] >= common_start].reset_index(drop=True)
 lr_df = lr_df[lr_df['date'] >= common_start].reset_index(drop=True)
 rf_df = rf_df[rf_df['date'] >= common_start].reset_index(drop=True)
+persistent_df = persistent_df[persistent_df['date'] >= common_start].reset_index(drop=True)
+sarima_df = sarima_df[sarima_df['date'] >= common_start].reset_index(drop=True)
 
 # Find common end date (minimum of all end dates)
-common_end = min(gru_df['date'].max(), lr_df['date'].max(), rf_df['date'].max())
+common_end = min(gru_df['date'].max(), lr_df['date'].max(), rf_df['date'].max(),
+                 persistent_df['date'].max(), sarima_df['date'].max())
 
 # Filter to common end date
 gru_df = gru_df[gru_df['date'] <= common_end].reset_index(drop=True)
 lr_df = lr_df[lr_df['date'] <= common_end].reset_index(drop=True)
 rf_df = rf_df[rf_df['date'] <= common_end].reset_index(drop=True)
+persistent_df = persistent_df[persistent_df['date'] <= common_end].reset_index(drop=True)
+sarima_df = sarima_df[sarima_df['date'] <= common_end].reset_index(drop=True)
 
 print(f"  Common date range: {common_start.date()} to {common_end.date()}")
 print(f"  GRU samples:       {len(gru_df)}")
 print(f"  LR samples:        {len(lr_df)}")
 print(f"  RF samples:        {len(rf_df)}")
+print(f"  Persistent:        {len(persistent_df)}")
+print(f"  SARIMA:            {len(sarima_df)}")
 
 # Merge on date to ensure alignment
 merged_df = gru_df[['date', 'actual_TG', 'predicted_TG']].rename(
@@ -92,6 +132,14 @@ merged_df = merged_df.merge(
     rf_df[['date', 'predicted_TG']].rename(columns={'predicted_TG': 'rf_pred'}),
     on='date', how='inner'
 )
+merged_df = merged_df.merge(
+    persistent_df[['date', 'predicted_TG']].rename(columns={'predicted_TG': 'persistent_pred'}),
+    on='date', how='inner'
+)
+merged_df = merged_df.merge(
+    sarima_df[['date', 'predicted_TG']].rename(columns={'predicted_TG': 'sarima_pred'}),
+    on='date', how='inner'
+)
 
 print(f"  Merged samples:    {len(merged_df)}")
 
@@ -101,6 +149,8 @@ actual = merged_df['actual_TG'].values
 gru_pred = merged_df['gru_pred'].values
 lr_pred = merged_df['lr_pred'].values
 rf_pred = merged_df['rf_pred'].values
+persistent_pred = merged_df['persistent_pred'].values
+sarima_pred = merged_df['sarima_pred'].values
 
 print("\nCalculating metrics...")
 
@@ -115,12 +165,16 @@ def calculate_metrics(actual, predicted):
 gru_mae, gru_rmse, gru_r2 = calculate_metrics(actual, gru_pred)
 lr_mae, lr_rmse, lr_r2 = calculate_metrics(actual, lr_pred)
 rf_mae, rf_rmse, rf_r2 = calculate_metrics(actual, rf_pred)
+persistent_mae, persistent_rmse, persistent_r2 = calculate_metrics(actual, persistent_pred)
+sarima_mae, sarima_rmse, sarima_r2 = calculate_metrics(actual, sarima_pred)
 
 print(f"\n{'Model':<20} {'MAE (0.1°C)':<15} {'MAE (°C)':<12} {'RMSE (0.1°C)':<16} {'RMSE (°C)':<12} {'R²':<10}")
 print("-" * 95)
 print(f"{'GRU':<20} {gru_mae:<15.2f} {gru_mae/10:<12.2f} {gru_rmse:<16.2f} {gru_rmse/10:<12.2f} {gru_r2:<10.4f}")
 print(f"{'Linear Regression':<20} {lr_mae:<15.2f} {lr_mae/10:<12.2f} {lr_rmse:<16.2f} {lr_rmse/10:<12.2f} {lr_r2:<10.4f}")
 print(f"{'Random Forest':<20} {rf_mae:<15.2f} {rf_mae/10:<12.2f} {rf_rmse:<16.2f} {rf_rmse/10:<12.2f} {rf_r2:<10.4f}")
+print(f"{'Persistent':<20} {persistent_mae:<15.2f} {persistent_mae/10:<12.2f} {persistent_rmse:<16.2f} {persistent_rmse/10:<12.2f} {persistent_r2:<10.4f}")
+print(f"{'SARIMA':<20} {sarima_mae:<15.2f} {sarima_mae/10:<12.2f} {sarima_rmse:<16.2f} {sarima_rmse/10:<12.2f} {sarima_r2:<10.4f}")
 
 print("\nGenerating visualization...")
 
@@ -141,19 +195,23 @@ ax1.plot(dates, actual, color=COLORS['actual'], label='Actual', linewidth=1.5, a
 ax1.plot(dates, gru_pred, color=COLORS['gru'], label='GRU', linewidth=1, alpha=0.7)
 ax1.plot(dates, lr_pred, color=COLORS['lr'], label='Linear Regression', linewidth=1, alpha=0.7, linestyle='--')
 ax1.plot(dates, rf_pred, color=COLORS['rf'], label='Random Forest', linewidth=1, alpha=0.7, linestyle='-.')
+ax1.plot(dates, persistent_pred, color=COLORS['persistent'], label='Persistent', linewidth=1, alpha=0.6, linestyle=':')
+ax1.plot(dates, sarima_pred, color=COLORS['sarima'], label='SARIMA', linewidth=1, alpha=0.6, linestyle=':')
 
 ax1.set_title('Day 1 Temperature Forecast - All Models Comparison', fontsize=12, fontweight='bold')
 ax1.set_xlabel('Date', fontsize=10)
 ax1.set_ylabel('Temperature (0.1°C)', fontsize=10)
-ax1.legend(loc='upper right', fontsize=9)
+ax1.legend(loc='upper right', fontsize=8, ncol=2)
 ax1.grid(True, alpha=0.3)
 
 # Add metrics text box
 textstr = (f'GRU:               MAE={gru_mae/10:.2f}°C, RMSE={gru_rmse/10:.2f}°C, R²={gru_r2:.4f}\n'
            f'Linear Regression: MAE={lr_mae/10:.2f}°C, RMSE={lr_rmse/10:.2f}°C, R²={lr_r2:.4f}\n'
-           f'Random Forest:     MAE={rf_mae/10:.2f}°C, RMSE={rf_rmse/10:.2f}°C, R²={rf_r2:.4f}')
+           f'Random Forest:     MAE={rf_mae/10:.2f}°C, RMSE={rf_rmse/10:.2f}°C, R²={rf_r2:.4f}\n'
+           f'Persistent:        MAE={persistent_mae/10:.2f}°C, RMSE={persistent_rmse/10:.2f}°C, R²={persistent_r2:.4f}\n'
+           f'SARIMA:            MAE={sarima_mae/10:.2f}°C, RMSE={sarima_rmse/10:.2f}°C, R²={sarima_r2:.4f}')
 props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
-ax1.text(0.02, 0.98, textstr, transform=ax1.transAxes, fontsize=8,
+ax1.text(0.02, 0.98, textstr, transform=ax1.transAxes, fontsize=7,
          verticalalignment='top', bbox=props, family='monospace')
 
 # Subplot 2: GRU Scatter Plot
@@ -187,14 +245,14 @@ ax4.grid(True, alpha=0.3)
 ax4.set_aspect('equal', adjustable='box')
 
 # Subplot 5: Bar Chart Comparison
-models = ['GRU', 'Linear\nRegression', 'Random\nForest']
+models = ['GRU', 'LR', 'RF', 'Persist', 'SARIMA']
 x = np.arange(len(models))
 width = 0.25
 
 # Convert to °C for better readability
-mae_values = [gru_mae/10, lr_mae/10, rf_mae/10]
-rmse_values = [gru_rmse/10, lr_rmse/10, rf_rmse/10]
-r2_values = [gru_r2, lr_r2, rf_r2]
+mae_values = [gru_mae/10, lr_mae/10, rf_mae/10, persistent_mae/10, sarima_mae/10]
+rmse_values = [gru_rmse/10, lr_rmse/10, rf_rmse/10, persistent_rmse/10, sarima_rmse/10]
+r2_values = [gru_r2, lr_r2, rf_r2, persistent_r2, sarima_r2]
 
 # Create bar chart
 bars1 = ax5.bar(x - width, mae_values, width, label='MAE (°C)', color='steelblue')
@@ -209,25 +267,25 @@ ax5.set_xlabel('Model', fontsize=9)
 ax5.set_ylabel('Error (°C)', fontsize=9)
 ax5_twin.set_ylabel('R²', fontsize=9)
 ax5.set_xticks(x)
-ax5.set_xticklabels(models, fontsize=8)
+ax5.set_xticklabels(models, fontsize=7)
 ax5.set_ylim(0, max(rmse_values) * 1.2)
 ax5_twin.set_ylim(0, 1.1)
 
 # Add value labels on bars
 for bar, val in zip(bars1, mae_values):
     ax5.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.05,
-             f'{val:.2f}', ha='center', va='bottom', fontsize=7)
+             f'{val:.2f}', ha='center', va='bottom', fontsize=6)
 for bar, val in zip(bars2, rmse_values):
     ax5.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.05,
-             f'{val:.2f}', ha='center', va='bottom', fontsize=7)
+             f'{val:.2f}', ha='center', va='bottom', fontsize=6)
 for bar, val in zip(bars3, r2_values):
     ax5_twin.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.02,
-                  f'{val:.3f}', ha='center', va='bottom', fontsize=7)
+                  f'{val:.3f}', ha='center', va='bottom', fontsize=6)
 
 # Combine legends
 lines1, labels1 = ax5.get_legend_handles_labels()
 lines2, labels2 = ax5_twin.get_legend_handles_labels()
-ax5.legend(lines1 + lines2, labels1 + labels2, loc='upper right', fontsize=7)
+ax5.legend(lines1 + lines2, labels1 + labels2, loc='upper right', fontsize=6)
 
 # Add grid
 ax5.grid(True, alpha=0.3, axis='y')
@@ -257,18 +315,22 @@ ax_ts.plot(dates, actual, color=COLORS['actual'], label='Actual', linewidth=1.5,
 ax_ts.plot(dates, gru_pred, color=COLORS['gru'], label='GRU', linewidth=1, alpha=0.7)
 ax_ts.plot(dates, lr_pred, color=COLORS['lr'], label='Linear Regression', linewidth=1, alpha=0.7, linestyle='--')
 ax_ts.plot(dates, rf_pred, color=COLORS['rf'], label='Random Forest', linewidth=1, alpha=0.7, linestyle='-.')
+ax_ts.plot(dates, persistent_pred, color=COLORS['persistent'], label='Persistent', linewidth=1, alpha=0.6, linestyle=':')
+ax_ts.plot(dates, sarima_pred, color=COLORS['sarima'], label='SARIMA', linewidth=1, alpha=0.6, linestyle=':')
 
 ax_ts.set_title('Day 1 Temperature Forecast - All Models Comparison', fontsize=14, fontweight='bold')
 ax_ts.set_xlabel('Date', fontsize=11)
 ax_ts.set_ylabel('Temperature (0.1°C)', fontsize=11)
-ax_ts.legend(loc='upper right', fontsize=10)
+ax_ts.legend(loc='upper right', fontsize=9, ncol=2)
 ax_ts.grid(True, alpha=0.3)
 
 textstr = (f'GRU:               MAE={gru_mae/10:.2f}°C, RMSE={gru_rmse/10:.2f}°C, R²={gru_r2:.4f}\n'
            f'Linear Regression: MAE={lr_mae/10:.2f}°C, RMSE={lr_rmse/10:.2f}°C, R²={lr_r2:.4f}\n'
-           f'Random Forest:     MAE={rf_mae/10:.2f}°C, RMSE={rf_rmse/10:.2f}°C, R²={rf_r2:.4f}')
+           f'Random Forest:     MAE={rf_mae/10:.2f}°C, RMSE={rf_rmse/10:.2f}°C, R²={rf_r2:.4f}\n'
+           f'Persistent:        MAE={persistent_mae/10:.2f}°C, RMSE={persistent_rmse/10:.2f}°C, R²={persistent_r2:.4f}\n'
+           f'SARIMA:            MAE={sarima_mae/10:.2f}°C, RMSE={sarima_rmse/10:.2f}°C, R²={sarima_r2:.4f}')
 props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
-ax_ts.text(0.02, 0.98, textstr, transform=ax_ts.transAxes, fontsize=9,
+ax_ts.text(0.02, 0.98, textstr, transform=ax_ts.transAxes, fontsize=8,
            verticalalignment='top', bbox=props, family='monospace')
 
 plt.tight_layout()
@@ -290,11 +352,15 @@ if mask_2025.sum() > 0:
     gru_pred_2025 = gru_pred[mask_2025]
     lr_pred_2025 = lr_pred[mask_2025]
     rf_pred_2025 = rf_pred[mask_2025]
+    persistent_pred_2025 = persistent_pred[mask_2025]
+    sarima_pred_2025 = sarima_pred[mask_2025]
 
     # Calculate metrics for 2025 only
     gru_mae_2025, gru_rmse_2025, gru_r2_2025 = calculate_metrics(actual_2025, gru_pred_2025)
     lr_mae_2025, lr_rmse_2025, lr_r2_2025 = calculate_metrics(actual_2025, lr_pred_2025)
     rf_mae_2025, rf_rmse_2025, rf_r2_2025 = calculate_metrics(actual_2025, rf_pred_2025)
+    persistent_mae_2025, persistent_rmse_2025, persistent_r2_2025 = calculate_metrics(actual_2025, persistent_pred_2025)
+    sarima_mae_2025, sarima_rmse_2025, sarima_r2_2025 = calculate_metrics(actual_2025, sarima_pred_2025)
 
     fig_ts_2025, ax_ts_2025 = plt.subplots(figsize=(14, 6))
 
@@ -302,19 +368,23 @@ if mask_2025.sum() > 0:
     ax_ts_2025.plot(dates_2025, gru_pred_2025, color=COLORS['gru'], label='GRU', linewidth=1, alpha=0.7)
     ax_ts_2025.plot(dates_2025, lr_pred_2025, color=COLORS['lr'], label='Linear Regression', linewidth=1, alpha=0.7, linestyle='--')
     ax_ts_2025.plot(dates_2025, rf_pred_2025, color=COLORS['rf'], label='Random Forest', linewidth=1, alpha=0.7, linestyle='-.')
+    ax_ts_2025.plot(dates_2025, persistent_pred_2025, color=COLORS['persistent'], label='Persistent', linewidth=1, alpha=0.6, linestyle=':')
+    ax_ts_2025.plot(dates_2025, sarima_pred_2025, color=COLORS['sarima'], label='SARIMA', linewidth=1, alpha=0.6, linestyle=':')
 
     ax_ts_2025.set_title('Day 1 Temperature Forecast - 2025 (Detailed View)', fontsize=14, fontweight='bold')
     ax_ts_2025.set_xlabel('Date', fontsize=11)
     ax_ts_2025.set_ylabel('Temperature (0.1°C)', fontsize=11)
-    ax_ts_2025.legend(loc='upper right', fontsize=10)
+    ax_ts_2025.legend(loc='upper right', fontsize=9, ncol=2)
     ax_ts_2025.grid(True, alpha=0.3)
 
     textstr_2025 = (f'2025 Metrics:\n'
                     f'GRU:               MAE={gru_mae_2025/10:.2f}°C, RMSE={gru_rmse_2025/10:.2f}°C, R²={gru_r2_2025:.4f}\n'
                     f'Linear Regression: MAE={lr_mae_2025/10:.2f}°C, RMSE={lr_rmse_2025/10:.2f}°C, R²={lr_r2_2025:.4f}\n'
-                    f'Random Forest:     MAE={rf_mae_2025/10:.2f}°C, RMSE={rf_rmse_2025/10:.2f}°C, R²={rf_r2_2025:.4f}')
+                    f'Random Forest:     MAE={rf_mae_2025/10:.2f}°C, RMSE={rf_rmse_2025/10:.2f}°C, R²={rf_r2_2025:.4f}\n'
+                    f'Persistent:        MAE={persistent_mae_2025/10:.2f}°C, RMSE={persistent_rmse_2025/10:.2f}°C, R²={persistent_r2_2025:.4f}\n'
+                    f'SARIMA:            MAE={sarima_mae_2025/10:.2f}°C, RMSE={sarima_rmse_2025/10:.2f}°C, R²={sarima_r2_2025:.4f}')
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
-    ax_ts_2025.text(0.02, 0.98, textstr_2025, transform=ax_ts_2025.transAxes, fontsize=9,
+    ax_ts_2025.text(0.02, 0.98, textstr_2025, transform=ax_ts_2025.transAxes, fontsize=8,
                     verticalalignment='top', bbox=props, family='monospace')
 
     plt.tight_layout()
@@ -327,7 +397,8 @@ else:
 
 # Separate Figure 3: R² Scatter Plots
 print("\nGenerating separate R² scatter plots...")
-fig_scatter, axes_scatter = plt.subplots(1, 3, figsize=(15, 5))
+fig_scatter, axes_scatter = plt.subplots(2, 3, figsize=(15, 10))
+axes_scatter = axes_scatter.flatten()
 
 # GRU Scatter
 axes_scatter[0].scatter(actual, gru_pred, color=COLORS['gru'], alpha=0.5, s=15)
@@ -362,6 +433,31 @@ axes_scatter[2].grid(True, alpha=0.3)
 axes_scatter[2].set_aspect('equal', adjustable='box')
 axes_scatter[2].legend(fontsize=8)
 
+# Persistent Scatter
+axes_scatter[3].scatter(actual, persistent_pred, color=COLORS['persistent'], alpha=0.5, s=15)
+min_val, max_val = min(actual.min(), persistent_pred.min()), max(actual.max(), persistent_pred.max())
+axes_scatter[3].plot([min_val, max_val], [min_val, max_val], 'k--', linewidth=1, label='Perfect prediction')
+axes_scatter[3].set_title(f'Persistent (R²={persistent_r2:.4f})', fontsize=12, fontweight='bold')
+axes_scatter[3].set_xlabel('Actual (0.1°C)', fontsize=10)
+axes_scatter[3].set_ylabel('Predicted (0.1°C)', fontsize=10)
+axes_scatter[3].grid(True, alpha=0.3)
+axes_scatter[3].set_aspect('equal', adjustable='box')
+axes_scatter[3].legend(fontsize=8)
+
+# SARIMA Scatter
+axes_scatter[4].scatter(actual, sarima_pred, color=COLORS['sarima'], alpha=0.5, s=15)
+min_val, max_val = min(actual.min(), sarima_pred.min()), max(actual.max(), sarima_pred.max())
+axes_scatter[4].plot([min_val, max_val], [min_val, max_val], 'k--', linewidth=1, label='Perfect prediction')
+axes_scatter[4].set_title(f'SARIMA (R²={sarima_r2:.4f})', fontsize=12, fontweight='bold')
+axes_scatter[4].set_xlabel('Actual (0.1°C)', fontsize=10)
+axes_scatter[4].set_ylabel('Predicted (0.1°C)', fontsize=10)
+axes_scatter[4].grid(True, alpha=0.3)
+axes_scatter[4].set_aspect('equal', adjustable='box')
+axes_scatter[4].legend(fontsize=8)
+
+# Hide the last subplot (6th position in 2x3 grid)
+axes_scatter[5].axis('off')
+
 plt.suptitle('Actual vs Predicted Temperature - Model Comparison', fontsize=14, fontweight='bold')
 plt.tight_layout()
 scatter_path = os.path.join(OUTPUT_DIR, 'scatter_plots_comparison.png')
@@ -371,15 +467,15 @@ plt.show()
 
 # Separate Figure 4: Bar Chart Comparison
 print("\nGenerating separate bar chart...")
-fig_bar, ax_bar = plt.subplots(figsize=(10, 6))
+fig_bar, ax_bar = plt.subplots(figsize=(12, 6))
 
-models = ['GRU', 'Linear Regression', 'Random Forest']
+models = ['GRU', 'Linear Regression', 'Random Forest', 'Persistent', 'SARIMA']
 x = np.arange(len(models))
 width = 0.25
 
-mae_values = [gru_mae/10, lr_mae/10, rf_mae/10]
-rmse_values = [gru_rmse/10, lr_rmse/10, rf_rmse/10]
-r2_values = [gru_r2, lr_r2, rf_r2]
+mae_values = [gru_mae/10, lr_mae/10, rf_mae/10, persistent_mae/10, sarima_mae/10]
+rmse_values = [gru_rmse/10, lr_rmse/10, rf_rmse/10, persistent_rmse/10, sarima_rmse/10]
+r2_values = [gru_r2, lr_r2, rf_r2, persistent_r2, sarima_r2]
 
 bars1 = ax_bar.bar(x - width, mae_values, width, label='MAE (°C)', color='steelblue')
 bars2 = ax_bar.bar(x, rmse_values, width, label='RMSE (°C)', color='coral')
