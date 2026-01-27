@@ -114,7 +114,7 @@ math: mathjax
 <!-- _backgroundColor: #000 -->
 <!-- _color: #fff -->
 
-![bg blur:5px brightness:0.5](clouds.jpg)
+![bg blur:5px brightness:0.5](images/clouds.jpg)
 
 # Machine Learning for Numeric Weather Prediction
 
@@ -126,13 +126,14 @@ Yuqi Fang, Ali Cem Çakmak, Muhammad Fakhar, Diego Garces, Deepak Sorout
 # Table of Contents
 
 1. Introduction
-2. Methods Overview
-3. Linear Regression
-4. Random Forest
-5. Neural Network
-6. Model Comparison
-7. Conclusion
-8. Questions
+2. Data Management
+3. Methods Overview
+4. Linear Regression
+5. Random Forest
+6. Neural Network
+7. Model Comparison
+8. Conclusion
+9. Questions
 
 ---
 
@@ -164,7 +165,48 @@ Yuqi Fang, Ali Cem Çakmak, Muhammad Fakhar, Diego Garces, Deepak Sorout
 
 ---
 
-<!-- header: '2. Methods Overview' -->
+<!-- header: '2. Data Management' -->
+<!-- _class: title -->
+
+# Data Management
+
+---
+
+<!-- header: '3. Data Management' -->
+
+# Data Cleaning
+
+- Removed measurements beyond 2025-09-30
+- Forward-filled missing values
+- Excluded variables with poor data quality (Sea Level Pressure, Global Radiation)
+
+
+---
+
+# Data Splitting
+
+<div class="twocols">
+<div class="col">
+
+**Year-based split (no data leakage):**
+- **Train:** 1957-2017 (60 years)
+- **Validation:** 2018-2022 (5 years)
+- **Test:** 2023-2025 (current data)
+
+</div>
+<div class="col">
+
+**Why year-based splitting?**
+- Preserves temporal ordering
+- Tests generalization to future, unseen data
+- Models cannot "peek" into the future during training
+
+</div>
+</div>
+
+---
+
+<!-- header: '3. Methods Overview' -->
 <!-- _class: title -->
 
 # Methods Overview
@@ -231,44 +273,244 @@ Yuqi Fang, Ali Cem Çakmak, Muhammad Fakhar, Diego Garces, Deepak Sorout
 
 ---
 
-<!-- header: '3. Linear Regression' -->
+<!-- header: '4. Linear Regression' -->
 <!-- _class: title -->
 
 # Linear Regression
 
 ---
 
-<!-- header: '3. Linear Regression' -->
+<div style="text-align: center;">
 
-# [Linear Regression Content]
+# Three Approaches
 
-*This section will be filled by Diego and Muhammad*
+**Simple Linear Regression:**
+$$TG_t = \beta_0 + \beta_1 TG_{t-1} + \epsilon$$
+
+**Multiple Linear Regression:**
+$$TG_t = \beta_0 + \beta_1 TN_{t-1} + \beta_2 TX_{t-1} + \beta_3 TG_{t-1} + \epsilon$$
+
+**Rolling Window Linear Regression:**
+$$TG_t = \beta_0 + \beta_1 TN_{t-1} + \beta_2 TX_{t-1} + \beta_3 TG_{t-1} + \beta_4 TG_{3d} + \epsilon$$
+
+</div>
 
 ---
 
-<!-- header: '4. Random Forest' -->
+<style scoped>
+.lr-container { display: flex; gap: 1em; align-items: center; }
+.lr-left { flex: 0.6; display: flex; align-items: center; justify-content: center; }
+.lr-right { flex: 0.4; display: flex; align-items: center; }
+.lr-right table { margin: 0; width: 100%; font-size: 0.9em; }
+.lr-right td, .lr-right th { padding: 0.4rem 0.5rem; }
+</style>
+
+# Results
+
+<div class="lr-container">
+<div class="lr-left">
+
+![](images/tg_multi_real_vs_predicho.png)
+
+</div>
+<div class="lr-right">
+
+| Experiment | MAE | RMSE | R² |
+|------------|-----|------|-----|
+| Simple | 1.76°C | 2.26°C | 0.880 |
+| Multiple | 1.72°C | 2.22°C | 0.885 |
+| Rolling Window | 1.72°C | 2.22°C | 0.884 |
+
+</div>
+</div>
+
+**Key Observations:**
+- Moving from simple to multiple regression improved all metrics
+- More information → provides context about the stability of the weather
+- Adding the 3-day average adds more noise than signal
+
+---
+
+<div style="text-align: center;">
+
+# Fitted Models
+
+**Simple Linear Regression:**
+$$TG_t = 0.62 + 0.93 TG_{t-1} + \epsilon$$
+
+**Multiple Linear Regression:**
+$$TG_t = 0.07 - 0.12 TN_{t-1} + 0.07 TX_{t-1} + 0.96 TG_{t-1} + \epsilon$$
+
+**Rolling Window Linear Regression:**
+$$TG_t = 0.02 + 0.15 TN_{t-1} + 0.035 TX_{t-1} + 0.94 TG_{t-1} + 0.093 TG_{3d} + \epsilon$$
+
+*The coefficient for yesterday's mean temperature is the strongest baseline predictor.*
+
+</div>
+
+---
+
+<!-- header: '5. Random Forest' -->
 <!-- _class: title -->
 
 # Random Forest
 
 ---
 
-<!-- header: '4. Random Forest' -->
+<style scoped>
+section { font-size: 2em; }
+.rf-container { display: flex; gap: 1em; align-items: center; }
+.rf-left { flex: 1; }
+.rf-left p, .rf-left ul { margin: 0em 0; }
+.rf-left ul { padding-left: 1.2em; }
+.rf-right { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+</style>
 
-# [Random Forest Content]
+<div class="rf-container">
+<div class="rf-left">
 
-*This section will be filled by Yuqi and Deepak*
+*"The Wisdom of the Crowds"*
+
+**Process:**
+- **Many Trees:** 100 independent decision trees
+- **Randomness:** Each tree sees random subset of data & features
+- **Averaging:** Final Prediction = Average of all 100 trees
+
+**Why:**
+- Reduces overfitting
+- Lowers prediction variance
+- Good for non-linear relationships
+
+</div>
+<div class="rf-right">
+
+![w:480](images/randomforest.webp)
+
+<p style="font-size: 0.6em;">Source: GeeksforGeeks</p>
+
+</div>
+</div>
 
 ---
 
-<!-- header: '5. Neural Network' -->
+<style scoped>
+section { font-size: 1.5em; }
+h1 { margin-bottom: 0.2em; }
+.meth-container { display: flex; gap: 0.8em; }
+.meth-left { flex: 0.7; }
+.meth-left p, .meth-left ul { margin: 0.2em 0; }
+.meth-left ul { padding-left: 1.2em; }
+.meth-right { flex: 1.3; font-size: 0.8em; }
+.meth-right table { margin: 0; }
+.meth-right td, .meth-right th { padding: 0.3rem 0.6rem; }
+</style>
+
+# Methodology
+
+<div class="meth-container">
+<div class="meth-left">
+
+**Autoregression (temporal dependencies)**
+- Past **15 days** of data → predict today (TG)
+
+**Features:**
+- 10 Weather variables: TG, TN, TX, RR, SS, HU, FG, FX, CC, SD
+- Lag days: **15**
+- Total features = 10 × 15 = **150 input columns**
+
+**Model Training:**
+- Lagged features fed into **Random Forest Regressor**
+- Model learns patterns from historical data
+
+</div>
+<div class="meth-right">
+
+| DATE | TG_1 | TG_2 | TG_3 | TG_4 | ... | TG_15 | Target |
+|------|------|------|------|------|-----|-------|--------|
+| 10-16 | 108 | 102 | 97 | 106 | ... | 56 | 139 |
+| 10-17 | 139 | 108 | 102 | 97 | ... | 57 | 139 |
+| 10-18 | 139 | 139 | 108 | 102 | ... | 83 | 174 |
+| 10-19 | 174 | 139 | 139 | 108 | ... | 58 | 105 |
+| 10-20 | 105 | 174 | 139 | 139 | ... | 93 | 77 |
+| 10-21 | 77 | 105 | 174 | 139 | ... | 108 | 100 |
+| 10-22 | 100 | 77 | 105 | 174 | ... | 106 | 77 |
+| 10-23 | 77 | 100 | 77 | 105 | ... | 105 | 84 |
+
+</div>
+</div>
+
+---
+
+# Validation & Hyperparameter Tuning
+
+<div class="twocols">
+<div class="col">
+
+<span style="color: green;">Train → Test</span> to <span style="color: green;">Train → Validation → Test</span>
+
+|<span style="color: green;">Trees \ Depth</span> | <span style="color: green;">None</span> | <span style="color: green;">10</span> |
+|---------------|------|------|
+| 50 | 2.0882 | 2.0771 |
+| 100 | 2.0740 | **2.0737** |
+| 200 | 2.0768 | 2.0777 |
+
+</div>
+<div class="col">
+
+🏆 **Best Model:**
+
+**Trees: 100 | Depth: 10** *(RMSE: 2.0737)*
+
+More trees ≠ Better results!
+
+</div>
+</div>
+
+---
+
+# Feature Selection Experiment
+
+<div class="twocols">
+<div class="col">
+
+<span style="color: green;">**The Hypothesis:**</span>
+
+**Reduce Dimensionality**
+- **Action:** Selected Top 30 Features
+- **Expectation:** Remove noise → Better Accuracy
+
+</div>
+<div class="col">
+
+<span style="color: green;">**What we observed:**</span>
+
+**Performance Drop**
+- 🏆 Full Model (150 Feats): → lower MAE, higher R²
+- ❌ Reduced Model (30 Feats): → MAE increased, R² decreased
+
+</div>
+</div>
+
+*Take-away: Feature selection likely disrupted temporal continuity (breaking the trend) and lost valuable interaction effects (where features contribute jointly)*
+
+---
+
+<div style="text-align: center;">
+
+**MAE: 1.59°C &emsp; RMSE: 2.07°C &emsp; R²: 0.901**
+
+![w:1200](images/randomforest_results.jpeg)
+
+</div>
+
+---
+
+<!-- header: '6. Neural Network' -->
 <!-- _class: title -->
 
 # Neural Network
 
 ---
-
-<!-- header: '5. Neural Network' -->
 
 # Approach
 
@@ -406,20 +648,18 @@ $$\hat{y}_{t+1} = y_t$$
 
 <div style="text-align: center;">
 
-![w:950](../../Neural-Network/figures/temperature_forecast_evaluation.png)
+![w:950](images/temperature_forecast_evaluation.png)
 
 </div>
 
 ---
 
-<!-- header: '6. Model Comparison' -->
+<!-- header: '7. Model Comparison' -->
 <!-- _class: title -->
 
 # Model Comparison
 
 ---
-
-<!-- header: '6. Model Comparison' -->
 
 # Performance Summary
 
@@ -451,7 +691,7 @@ $$\hat{y}_{t+1} = y_t$$
 
 <div style="text-align: center;">
 
-![w:1000](../../figures/metrics_bar_chart.png)
+![w:1000](images/metrics_bar_chart.png)
 
 </div>
 
@@ -459,7 +699,7 @@ $$\hat{y}_{t+1} = y_t$$
 
 <div style="text-align: center;">
 
-![w:850](../../figures/scatter_plots_comparison.png)
+![w:850](images/scatter_plots_comparison.png)
 
 </div>
 
@@ -469,7 +709,7 @@ $$\hat{y}_{t+1} = y_t$$
 
 <div style="text-align: center;">
 
-![w:1050](../../figures/time_series_comparison.png)
+![w:1050](images/time_series_comparison.png)
 
 </div>
 
@@ -479,13 +719,13 @@ $$\hat{y}_{t+1} = y_t$$
 
 <div style="text-align: center;">
 
-![w:1050](../../figures/time_series_2025.png)
+![w:1050](images/time_series_2025.png)
 
 </div>
 
 ---
 
-<!-- header: '7. Conclusion' -->
+<!-- header: '8. Conclusion' -->
 
 # Conclusion
 
@@ -510,7 +750,7 @@ $$\hat{y}_{t+1} = y_t$$
 
 ---
 
-<!-- header: '8. Questions?' -->
+<!-- header: '9. Questions?' -->
 <!-- _class: title -->
 
 # Questions?
