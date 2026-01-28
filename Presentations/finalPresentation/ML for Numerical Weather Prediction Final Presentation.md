@@ -149,7 +149,6 @@ Yuqi Fang, Ali Cem Çakmak, Muhammad Fakhar, Diego Garces, Deepak Sorout
 **Approach:**
 - Compare 3 machine learning methods
 - Predict mean daily temperature
-- Evaluate on real-world data (2023-2025)
 
 </div>
 <div class="col">
@@ -448,6 +447,8 @@ h1 { margin-bottom: 0.2em; }
 
 <span style="color: green;">Train → Test</span> to <span style="color: green;">Train → Validation → Test</span>
 
+##### Impact of Trees & Depth on Error
+
 |<span style="color: green;">Trees \ Depth</span> | <span style="color: green;">None</span> | <span style="color: green;">10</span> |
 |---------------|------|------|
 | 50 | 2.0882 | 2.0771 |
@@ -485,8 +486,10 @@ More trees ≠ Better results!
 <span style="color: green;">**What we observed:**</span>
 
 **Performance Drop**
-- 🏆 Full Model (150 Feats): → lower MAE, higher R²
-- ❌ Reduced Model (30 Feats): → MAE increased, R² decreased
+- Full Model (150 Feats):
+  MAE 1.57 - R² 0.9021
+- Reduced Model (30 Feats):
+  MAE 1.59 - R² 0.9014
 
 </div>
 </div>
