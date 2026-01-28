@@ -748,7 +748,6 @@ $$\hat{y}_{t+1} = y_t$$
 
 **Key Observations:**
 - GRU and RF achieve comparable top performance
-- Both ML models outperform traditional methods
 - 10% improvement over Persistent baseline
 - 7% improvement over SARIMA baseline
 - All models maintain R² > 0.87
@@ -812,7 +811,6 @@ $$\hat{y}_{t+1} = y_t$$
 **Future Directions:**
 - Multi-station data for spatial patterns
 - Extend forecast horizon beyond 3 days
-- Ensemble methods combining approaches
 
 </div>
 </div>
