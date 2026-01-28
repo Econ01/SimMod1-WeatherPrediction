@@ -105,6 +105,92 @@ style: |
   table tr:nth-child(even) {
     background: transparent;
   }
+
+  div.meth-container {
+    display: flex;
+    gap: 0.8em;
+  }
+
+  div.meth-left {
+    flex: 0.7;
+  }
+
+  div.meth-left p, .meth-left ul {
+    margin: 0.2em 0;
+  }
+
+  div.meth-left ul {
+    padding-left: 1.2em;
+  }
+
+  div.meth-right {
+    flex: 1.3;
+    font-size: 0.8em;
+  }
+
+  div.meth-right table {
+    margin: 0;
+  }
+
+  div.meth-right td, .meth-right th {
+    padding: 0.3rem 0.6rem;
+  }
+
+  div.rf-container {
+    display: flex;
+    gap: 1em;
+    align-items: center;
+  }
+
+  div.rf-left {
+    flex: 1;
+  }
+
+  div.rf-left p, .rf-left ul {
+    margin: 0em 0;
+  }
+
+  div.rf-left ul {
+    padding-left: 1.2em;
+  }
+
+  div.rf-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  div.lr-container {
+    display: flex;
+    gap: 1em;
+    align-items: center;
+  }
+
+  div.lr-left {
+    flex: 0.6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  div.lr-right {
+    flex: 0.4;
+    display: flex;
+    align-items: center;
+  }
+
+  div.lr-right table {
+    margin: 0;
+    width: 100%;
+    font-size: 0.9em;
+  }
+
+  div.lr-right td, .lr-right th {
+    padding: 0.4rem 0.5rem;
+  }
+
 math: mathjax
 ---
 
@@ -296,14 +382,6 @@ $$TG_t = \beta_0 + \beta_1 TN_{t-1} + \beta_2 TX_{t-1} + \beta_3 TG_{t-1} + \bet
 
 ---
 
-<style scoped>
-.lr-container { display: flex; gap: 1em; align-items: center; }
-.lr-left { flex: 0.6; display: flex; align-items: center; justify-content: center; }
-.lr-right { flex: 0.4; display: flex; align-items: center; }
-.lr-right table { margin: 0; width: 100%; font-size: 0.9em; }
-.lr-right td, .lr-right th { padding: 0.4rem 0.5rem; }
-</style>
-
 # Results
 
 <div class="lr-container">
@@ -358,11 +436,6 @@ $$TG_t = 0.02 + 0.15 TN_{t-1} + 0.035 TX_{t-1} + 0.94 TG_{t-1} + 0.093 TG_{3d} +
 
 <style scoped>
 section { font-size: 2em; }
-.rf-container { display: flex; gap: 1em; align-items: center; }
-.rf-left { flex: 1; }
-.rf-left p, .rf-left ul { margin: 0em 0; }
-.rf-left ul { padding-left: 1.2em; }
-.rf-right { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 </style>
 
 <div class="rf-container">
@@ -395,13 +468,6 @@ section { font-size: 2em; }
 <style scoped>
 section { font-size: 1.5em; }
 h1 { margin-bottom: 0.2em; }
-.meth-container { display: flex; gap: 0.8em; }
-.meth-left { flex: 0.7; }
-.meth-left p, .meth-left ul { margin: 0.2em 0; }
-.meth-left ul { padding-left: 1.2em; }
-.meth-right { flex: 1.3; font-size: 0.8em; }
-.meth-right table { margin: 0; }
-.meth-right td, .meth-right th { padding: 0.3rem 0.6rem; }
 </style>
 
 # Methodology
